@@ -1,0 +1,84 @@
+# LLM Provider Configuration
+# Environment variables are referenced with ${VAR_NAME} syntax
+
+providers:
+  # Default provider to use when not specified
+  default: openai
+
+  # OpenAI Configuration
+  openai:
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4-turbo-preview
+    temperature: 0.7
+    max_tokens: 4096
+
+  # Anthropic Configuration
+  anthropic:
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+    model: claude-3-opus-20240229
+    temperature: 0.7
+    max_tokens: 4096
+
+  # Kimi 2 Configuration
+  kimi:
+    type: kimi
+    api_key: ${KIMI_API_KEY}
+    model: kimi-2
+    base_url: https://api.moonshot.cn/v1
+    temperature: 0.7
+    max_tokens: 4096
+
+  # Fast/Cheap model for simple tasks
+  openai_fast:
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-3.5-turbo
+    temperature: 0.7
+    max_tokens: 2048
+
+# Agent-specific model assignments
+# This allows you to use different models for different agents
+# to optimize for cost, speed, or quality
+agent_models:
+  planner: openai           # Complex reasoning needed
+  writer: kimi              # Long-form generation, can use Kimi 2
+  critic_structure: anthropic  # Strong at critique
+  critic_style: openai      # Style analysis
+  fact_checker: openai      # Precise fact checking
+  curator: openai_fast      # Simple clustering/summarization
+  philosophy_tutor: anthropic  # Complex analysis
+  research: openai_fast     # Simple retrieval
+  embeddings: openai        # For vector embeddings
+
+# Fallback configuration
+fallback:
+  enabled: true
+  # If primary fails, try these in order
+  order:
+    - openai
+    - kimi
+    - anthropic
+
+# Rate limiting (requests per minute per provider)
+rate_limits:
+  openai: 60
+  anthropic: 50
+  kimi: 100
+  openai_fast: 100
+
+# Cost tracking (cost per 1K tokens, approximate)
+costs:
+  gpt-4-turbo-preview:
+    prompt: 0.01
+    completion: 0.03
+  gpt-3.5-turbo:
+    prompt: 0.0005
+    completion: 0.0015
+  claude-3-opus-20240229:
+    prompt: 0.015
+    completion: 0.075
+  kimi-2:
+    prompt: 0.008  # Adjust based on actual Kimi pricing
+    completion: 0.024

@@ -5,20 +5,37 @@ This document provides comprehensive guidance for AI assistants working with thi
 ## Repository Overview
 
 **Repository**: megrich23/0
-**Status**: New repository (currently empty)
-**Purpose**: [To be defined as project develops]
+**Project Name**: Multi-Agent Essay Writer + Philosophy Reader + Culture Watcher
+**Status**: Active development
+**Purpose**: A sophisticated multi-agent system for producing high-quality essays, absorbing philosophical texts, and monitoring cultural scenes with full provenance tracking and citation support.
 
 ## Repository Structure
 
 ```
 /
+├── backend/
+│   ├── agents/        # Agent implementations (Planner, Writer, Critic, etc.)
+│   ├── api/           # FastAPI routes
+│   ├── core/          # Core orchestrator and providers
+│   ├── models/        # Data models (SQLAlchemy + Pydantic)
+│   ├── services/      # Business logic
+│   ├── tools/         # Agent tools
+│   └── utils/         # Utilities
+├── frontend/
+│   ├── components/    # React components
+│   ├── pages/         # Next.js pages
+│   ├── lib/           # Client utilities
+│   └── styles/        # CSS/Tailwind
+├── database/
+│   ├── migrations/    # Alembic migrations
+│   └── schemas/       # SQL schemas
+├── config/            # Configuration files
+├── docs/              # Documentation
+├── tests/             # Test suites
+├── .env.example       # Environment template
+├── .gitignore         # Git ignore patterns
 ├── CLAUDE.md          # This file - AI assistant guidance
-├── README.md          # Project documentation (to be created)
-├── .gitignore         # Git ignore patterns (to be created)
-├── src/               # Source code directory (to be created)
-├── tests/             # Test files (to be created)
-├── docs/              # Additional documentation (to be created)
-└── [other dirs]       # As project needs evolve
+└── README.md          # Project documentation
 ```
 
 ## Development Workflows
@@ -181,13 +198,15 @@ This document provides comprehensive guidance for AI assistants working with thi
 
 ## Project-Specific Conventions
 
-[This section will be updated as project conventions are established]
-
 ### Language/Framework
 
-- **Primary Language**: [To be determined]
-- **Framework**: [To be determined]
-- **Package Manager**: [To be determined]
+- **Backend Language**: Python 3.11+
+- **Backend Framework**: FastAPI
+- **Frontend**: Next.js 14+ (React, TypeScript)
+- **Database**: PostgreSQL 15+ with pgvector extension
+- **Package Managers**: pip (Python), npm (Node.js)
+- **ORM**: SQLAlchemy 2.0
+- **Type Checking**: Pydantic for validation, mypy for static analysis
 
 ### Dependencies
 
@@ -216,6 +235,64 @@ This document provides comprehensive guidance for AI assistants working with thi
 - Handle user errors gracefully
 - Log errors appropriately
 - Don't expose internals to users
+
+### Agent Development
+
+**Agent Structure:**
+- All agents inherit from `BaseAgent` in `backend/agents/base.py`
+- Each agent has a specific `AgentRole` (planner, writer, critic, etc.)
+- Agents use LLM providers through the unified interface
+- System prompts are defined as module constants
+- Agents return `AgentResult` objects
+
+**Agent Best Practices:**
+- Keep agents focused on single responsibility
+- Define required tools in `get_required_tools()`
+- Validate context before execution
+- Return structured output (prefer JSON when possible)
+- Track token usage and execution time
+- Handle errors gracefully with informative messages
+
+**Available Agents:**
+- **PlannerAgent**: Creates essay outlines and argument maps
+- **WriterAgent**: Drafts essay sections with citations
+- **CriticAgent**: Provides structural and style critiques
+- **FactCheckerAgent**: Verifies citations and claim support
+- **ResearchAgent**: Retrieves evidence from knowledge base
+- **CuratorAgent**: Creates culture watch digests
+- **PhilosophyTutorAgent**: Processes philosophical texts
+
+**Workflow Orchestration:**
+- Use `Orchestrator` class in `backend/core/orchestrator.py`
+- Define workflows using `WorkflowDefinition` and `WorkflowStep`
+- Steps can have dependencies (executed in order)
+- Independent steps run in parallel
+- Artifacts pass between steps via `execution.artifacts`
+
+**Provider Configuration:**
+- Configure in `config/providers.yaml`
+- Assign different models to different agents for cost/quality optimization
+- Use environment variables for API keys
+- Support fallback providers
+
+### Quality Standards
+
+**Essay Quality Requirements:**
+- Citation coverage ≥ 70% of paragraphs
+- Specificity score ≥ 0.6 (concrete nouns, names, examples)
+- No forbidden filler phrases
+- Every claim either cited or labeled [SPECULATIVE]
+- At least one counterargument addressed
+- Varied sentence structure (15-35 words, avg ~22)
+
+**Code Quality Requirements:**
+- Type hints on all function signatures
+- Pydantic models for validation
+- Async/await for I/O operations
+- Proper error handling with custom exceptions
+- Logging at appropriate levels (DEBUG, INFO, WARNING, ERROR)
+- Unit tests for business logic
+- Integration tests for workflows
 
 ## Tools and Commands
 
@@ -247,7 +324,64 @@ git fetch origin branch-name
 
 ### Project Commands
 
-[To be added as build/test/deploy commands are established]
+**Backend (Python):**
+```bash
+# Set up environment
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Run development server
+uvicorn api.main:app --reload
+
+# Run tests
+pytest
+pytest --cov=backend --cov-report=html
+
+# Database migrations
+alembic upgrade head
+alembic revision --autogenerate -m "description"
+
+# Run worker
+celery -A core.worker worker --loglevel=info
+
+# Type checking
+mypy backend/
+
+# Code formatting
+black backend/
+isort backend/
+```
+
+**Frontend (Next.js):**
+```bash
+# Set up
+cd frontend
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+npm start
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+```
+
+**Database:**
+```bash
+# Initialize database
+psql -U postgres -d essay_system -f database/schemas/init.sql
+
+# Create database
+createdb essay_system
+```
 
 ## Troubleshooting
 
