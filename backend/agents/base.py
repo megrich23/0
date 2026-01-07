@@ -18,6 +18,7 @@ class AgentRole(str, Enum):
     FACT_CHECKER = "fact_checker"
     CURATOR = "curator"
     TUTOR = "tutor"
+    BRAINSTORMER = "brainstormer"
 
 
 @dataclass

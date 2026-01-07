@@ -416,3 +416,209 @@ def create_philosophy_reading_workflow(
         allowed_sources=[doc_id],
         strict_mode=True
     )
+
+
+def create_brainstorming_workflow(
+    topic: str,
+    mode: str = "explore",
+    constraints: dict = None,
+    include_critique: bool = True,
+    include_research: bool = True,
+) -> WorkflowDefinition:
+    """
+    Create a workflow for brainstorming with multi-agent collaboration.
+
+    This workflow:
+    1. Brainstorms initial ideas from knowledge base and memory
+    2. Optionally researches to find supporting evidence
+    3. Optionally critiques ideas for weaknesses
+    4. Synthesizes final ideas with connections
+
+    Args:
+        topic: Topic to brainstorm
+        mode: Brainstorming mode (explore, synthesize, challenge, analogize, elaborate)
+        constraints: Additional constraints (depth, sources, perspectives)
+        include_critique: Whether to include critique step
+        include_research: Whether to include research step
+
+    Returns:
+        Workflow definition
+    """
+    workflow_id = str(uuid.uuid4())
+    constraints = constraints or {}
+
+    steps = [
+        # Initial brainstorming
+        WorkflowStep(
+            step_id="brainstorm_initial",
+            agent_role=AgentRole.BRAINSTORMER,
+            task=f"Brainstorm ideas on: {topic}",
+            constraints={
+                "mode": mode,
+                "depth": constraints.get("depth", 2),
+                "sources": constraints.get("sources", ["philosophy", "culture", "notes", "concepts"]),
+            }
+        ),
+    ]
+
+    # Optional research step
+    if include_research:
+        steps.append(
+            WorkflowStep(
+                step_id="research_evidence",
+                agent_role=AgentRole.RESEARCH,
+                task="Find evidence and sources to support or challenge the brainstormed ideas",
+                dependencies=["brainstorm_initial"],
+                constraints={"focus_on_ideas": True}
+            )
+        )
+
+    # Optional critique step
+    if include_critique:
+        critique_deps = ["brainstorm_initial"]
+        if include_research:
+            critique_deps.append("research_evidence")
+
+        steps.append(
+            WorkflowStep(
+                step_id="critique_ideas",
+                agent_role=AgentRole.CRITIC,
+                task="Critique the brainstormed ideas: identify strengths, weaknesses, and gaps",
+                dependencies=critique_deps,
+                constraints={"critique_type": "brainstorm"}
+            )
+        )
+
+    # Final synthesis
+    synthesis_deps = ["brainstorm_initial"]
+    if include_research:
+        synthesis_deps.append("research_evidence")
+    if include_critique:
+        synthesis_deps.append("critique_ideas")
+
+    steps.append(
+        WorkflowStep(
+            step_id="synthesize_final",
+            agent_role=AgentRole.BRAINSTORMER,
+            task="Synthesize final ideas incorporating research and critique feedback",
+            dependencies=synthesis_deps,
+            constraints={
+                "mode": "synthesize",
+                "depth": 3,
+            }
+        )
+    )
+
+    return WorkflowDefinition(
+        workflow_id=workflow_id,
+        name="Brainstorming Session",
+        description=f"Brainstorm on: {topic[:100]}...",
+        steps=steps,
+        global_constraints=constraints,
+        allowed_sources=constraints.get("allowed_sources", []),
+        strict_mode=constraints.get("strict_mode", False)  # Less strict for brainstorming
+    )
+
+
+def create_essay_with_brainstorming_workflow(
+    prompt: str,
+    constraints: dict,
+    allowed_sources: list[str],
+    strict_mode: bool = True
+) -> WorkflowDefinition:
+    """
+    Create an essay workflow that starts with brainstorming.
+
+    This extended workflow:
+    1. Brainstorms ideas and angles for the essay
+    2. Plans the essay structure based on brainstormed ideas
+    3. Researches evidence
+    4. Drafts the essay
+    5. Critiques and revises
+    6. Fact-checks
+
+    Args:
+        prompt: Essay prompt
+        constraints: Constraints (wordcount, tone, etc.)
+        allowed_sources: List of allowed source IDs
+        strict_mode: Whether to operate in strict source-only mode
+
+    Returns:
+        Workflow definition
+    """
+    workflow_id = str(uuid.uuid4())
+
+    steps = [
+        # Brainstorming phase
+        WorkflowStep(
+            step_id="brainstorm",
+            agent_role=AgentRole.BRAINSTORMER,
+            task=f"Brainstorm ideas and angles for: {prompt}",
+            constraints={
+                "mode": "explore",
+                "depth": 2,
+                "sources": ["philosophy", "culture", "notes", "concepts"],
+            }
+        ),
+        # Planning informed by brainstorming
+        WorkflowStep(
+            step_id="plan",
+            agent_role=AgentRole.PLANNER,
+            task=f"Create an outline for: {prompt}",
+            dependencies=["brainstorm"],
+            constraints=constraints
+        ),
+        # Research
+        WorkflowStep(
+            step_id="research",
+            agent_role=AgentRole.RESEARCH,
+            task="Find evidence for each section of the outline",
+            dependencies=["plan"]
+        ),
+        # Draft
+        WorkflowStep(
+            step_id="draft",
+            agent_role=AgentRole.WRITER,
+            task="Write the essay draft based on outline and evidence",
+            dependencies=["plan", "research"],
+            constraints=constraints
+        ),
+        # Parallel critiques
+        WorkflowStep(
+            step_id="critique_structure",
+            agent_role=AgentRole.CRITIC,
+            task="Critique the structural quality of the draft",
+            dependencies=["draft"]
+        ),
+        WorkflowStep(
+            step_id="critique_style",
+            agent_role=AgentRole.CRITIC,
+            task="Critique the style and voice of the draft",
+            dependencies=["draft"]
+        ),
+        # Revision
+        WorkflowStep(
+            step_id="revise",
+            agent_role=AgentRole.WRITER,
+            task="Revise the draft based on critique",
+            dependencies=["draft", "critique_structure", "critique_style"],
+            constraints=constraints
+        ),
+        # Fact check
+        WorkflowStep(
+            step_id="fact_check",
+            agent_role=AgentRole.FACT_CHECKER,
+            task="Verify citations and check for unsupported claims",
+            dependencies=["revise"]
+        ),
+    ]
+
+    return WorkflowDefinition(
+        workflow_id=workflow_id,
+        name="Essay Generation with Brainstorming",
+        description=f"Generate essay with brainstorming: {prompt[:100]}...",
+        steps=steps,
+        global_constraints=constraints,
+        allowed_sources=allowed_sources,
+        strict_mode=strict_mode
+    )

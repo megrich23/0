@@ -50,6 +50,7 @@ agent_models:
   curator: openai_fast      # Simple clustering/summarization
   philosophy_tutor: anthropic  # Complex analysis
   research: openai_fast     # Simple retrieval
+  brainstormer: anthropic   # Creative ideation needs strong reasoning
   embeddings: openai        # For vector embeddings
 
 # Fallback configuration
