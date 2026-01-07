@@ -197,6 +197,10 @@ class BrainstormingTool(BaseTool):
             if sources is None:
                 sources = ["philosophy", "culture", "notes", "concepts"]
 
+            # Track which phases ran
+            phases_run = []
+            phases_skipped = []
+
             # Phase 1: Retrieve from knowledge base
             if self.db_session and self.embedding_provider:
                 kb_ideas = await self._retrieve_from_knowledge_base(
@@ -206,6 +210,12 @@ class BrainstormingTool(BaseTool):
                 )
                 for idea in kb_ideas:
                     session.add_idea(idea)
+                phases_run.append("knowledge_base_retrieval")
+            else:
+                phases_skipped.append({
+                    "phase": "knowledge_base_retrieval",
+                    "reason": "Missing db_session or embedding_provider"
+                })
 
             # Phase 2: Query concept graph for connections
             if self.db_session and "concepts" in sources:
@@ -215,6 +225,12 @@ class BrainstormingTool(BaseTool):
                 )
                 for idea in concept_ideas:
                     session.add_idea(idea)
+                phases_run.append("concept_graph_exploration")
+            elif "concepts" in sources:
+                phases_skipped.append({
+                    "phase": "concept_graph_exploration",
+                    "reason": "Missing db_session"
+                })
 
             # Phase 3: Synthesize with LLM
             if self.llm_provider:
@@ -225,6 +241,12 @@ class BrainstormingTool(BaseTool):
                 )
                 for idea in synthesized:
                     session.add_idea(idea)
+                phases_run.append("llm_synthesis")
+            else:
+                phases_skipped.append({
+                    "phase": "llm_synthesis",
+                    "reason": "Missing llm_provider"
+                })
 
             # Phase 4: Get agent perspectives
             if agent_perspectives and self.orchestrator:
@@ -235,13 +257,33 @@ class BrainstormingTool(BaseTool):
                 )
                 for idea in agent_ideas:
                     session.add_idea(idea)
+                phases_run.append("agent_perspectives")
+            elif agent_perspectives:
+                phases_skipped.append({
+                    "phase": "agent_perspectives",
+                    "reason": "Missing orchestrator"
+                })
 
             # Store session
             self._sessions[session.session_id] = session
             session.iterations += 1
 
+            # Build result with diagnostic info
+            result_data = session.to_dict()
+            result_data["phases_run"] = phases_run
+            result_data["phases_skipped"] = phases_skipped
+
+            # Warn if no ideas generated
+            if not session.ideas and phases_skipped:
+                return ToolResult.ok(
+                    data=result_data,
+                    session_id=session.session_id,
+                    idea_count=0,
+                    warning="No ideas generated - all phases skipped due to missing dependencies",
+                )
+
             return ToolResult.ok(
-                data=session.to_dict(),
+                data=result_data,
                 session_id=session.session_id,
                 idea_count=len(session.ideas),
             )
